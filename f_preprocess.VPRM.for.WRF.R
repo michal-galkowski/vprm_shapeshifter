@@ -11,10 +11,14 @@
 #                           code, e.g. "d01", "d02"...
 #           current.year  - year for which the forecasted VPRM data are being
 #                           produced, e.g. 2018 (numeric)
-#           previous.year - last year for which EVI_MAX. EVI_MIN, LSWI_MAX and
-#                           LSWI_MIN indices are valid. E.g. 2017 (numeric)
+#           previous.year - Leave NULL if NOT working with current calendar year
+#                           It's purpose is to handle the last year for which EVI_MAX, EVI_MIN, LSWI_MAX and
+#                           LSWI_MIN indices are valid. Usually current.year - 1 (numeric)
+#           load.precalculated.indices - debug only
+#           add.kaplan.model.input - If input for Kaplan model is available in the input
+#                           dir, it's enabled by this flag
 #
-# Output:   FILES ONLY    - Bunch of netcdf files with daily-averaged EVI and
+# Output:   FILES ONLY    - A year-worth of netcdf files with daily-averaged EVI and
 #                           LSWI indices.
 
 
@@ -26,19 +30,31 @@
 # current.year   <- 2018
 # previous.year  <- 2017
 
-f_preprocess.VPRM.for.WRF <- function( input_dir                  = "/work/mj0143/b301033/Data/CoMet_input/Emissions/VPRM_input/yearly",
-                                       output_dir                 = "/work/mj0143/b301033/Data/CoMet_input/Emissions/VPRM_input/WRF_input",
+f_preprocess.VPRM.for.WRF <- function( input_dir,
+                                       output_dir,
                                        current.domain             = "d01",
                                        current.year               = 2018,
-                                       previous.year              = 2017,
-                                       load.precalculated.indices = F ){
+                                       previous.year              = NULL,
+                                       load.precalculated.indices = F,
+                                       add.kaplan.model.input     = F){
+  
+  # Previous year paramter is only needed when dealing with a year for which
+  # only partial MODIS data is available. The code will then ALSO use previous
+  # year's values for MODIS indices (EVI, LSWI) to estimate EVI_MAX, EVI_MIN,
+  # LSWI_MAX and LSWI_MIN. Otherwise it is assumed that all data come from
+  # a single year.
+  if( is.null( previous.year) ){
+    previous.year = current.year
+  }
   
   library(ncdf4)
   
   cat("\n===================================================================", sep = "")
-  cat("\n=================== VPRM for WRF-Chem 3.9.1.1.=====================", sep = "")
-  cat("\n===================         CoMet 2018        =====================", sep = "")
+  cat("\n===================     VPRM Shapeshifter     =====================", sep = "")
+  cat("\n===================    for WRF-Chem 3.9.1.1.  =====================", sep = "")
+  cat("\n===================         MPI-BGC 2018      =====================", sep = "")
   cat("\n===================================================================", sep = "")
+  cat("\nM.Galkowski, MPI-BGC Jena, 2018", sep = "")
   cat("\n")
   cat("Input directory:\n")
   cat("  ", input_dir, "\n", sep = "")
@@ -61,6 +77,13 @@ f_preprocess.VPRM.for.WRF <- function( input_dir                  = "/work/mj014
   lswi.min.nc <- nc_open( file.path( input_dir, paste0( "VPRM_input_LSWI_MIN_", current.domain, "_", previous.year , ".nc" ) ) )
   veg_fra.nc  <- nc_open( file.path( input_dir, paste0( "VPRM_input_VEG_FRA_" , current.domain, "_", previous.year , ".nc" ) ) )
   
+  # Added reading of the files necessary for CH4 wetland emissions (implementation: Santiago Botia & Mike Galkowski)
+  if( add.kaplan.model.input ){
+    kap.cpool.nc  <- nc_open( file.path( input_dir, paste0( "CPOOL_"  , current.domain, "_", previous.year , ".nc" ) ) )
+    kap.wetmap.nc <- nc_open( file.path( input_dir, paste0( "WETMAP_" , current.domain, "_", previous.year , ".nc" ) ) )
+    kap.t.ann.nc  <- nc_open( file.path( input_dir, paste0( "T_ANN_"  , current.domain, "_", previous.year , ".nc" ) ) )
+  }
+  
   # Reading the files into the environment. ====================================
   cat("Reading variables from netcdf files... ", sep = "")
   # 1D
@@ -70,6 +93,12 @@ f_preprocess.VPRM.for.WRF <- function( input_dir                  = "/work/mj014
   # 2D ( X x Y )
   lon <- ncvar_get( lswi.nc, varid = "lon")
   lat <- ncvar_get( lswi.nc, varid = "lat")
+  if( add.kaplan.model.input ){
+    kaplan.cpool  <- ncvar_get( kap.cpool.nc,  varid = "CPOOL")
+    # ASSUMING that WETMAP is given in percent
+    kaplan.wetmap <- ncvar_get( kap.wetmap.nc, varid = "WETMAP")/100
+    kaplan.t.ann  <- ncvar_get( kap.t.ann.nc,  varid = "T_ANN")
+  }
   
   # 3D( X x Y x vegetation_class )
   evi.max  <- ncvar_get( evi.max.nc,  varid = "evi_max")
@@ -90,10 +119,9 @@ f_preprocess.VPRM.for.WRF <- function( input_dir                  = "/work/mj014
   # attributes.values    <- ncatt_get( attributes.nc, varid = 0, attname = NA )
   
   # Dummy fields:
-  kaplan.cpool   <- rep( 1, length(veg.fra) )
-  kaplan.wetmap  <- rep( 1, length(lon)*8 )
-  kaplan.t.ann   <- rep( 293.15, length(lon)*8 )
-  
+  # kaplan.cpool   <- rep( 1, length(veg.fra) )
+  # kaplan.wetmap  <- rep( 1, length(lon)*8 )
+  # kaplan.t.ann   <- rep( 293.15, length(lon)*8 )
   
   # Closing netcdf connections:
   nc_close( lswi.nc )
@@ -104,6 +132,11 @@ f_preprocess.VPRM.for.WRF <- function( input_dir                  = "/work/mj014
   nc_close( lswi.min.nc )
   nc_close( veg_fra.nc )
   # nc_close( attributes.nc )
+  if( add.kaplan.model.input ){
+    nc_close( kap.cpool.nc )
+    nc_close( kap.wetmap.nc )
+    nc_close( kap.t.ann.nc )
+  }
   
   
   # Dimensions:
@@ -170,6 +203,7 @@ f_preprocess.VPRM.for.WRF <- function( input_dir                  = "/work/mj014
   ncdim.west_east   <- ncdim_def( name = "west_east",   units = "", vals  = 1:nx, create_dimvar = F )
   ncdim.south_north <- ncdim_def( name = "south_north", units = "", vals  = 1:ny, create_dimvar = F )
   ncdim.veg_type    <- ncdim_def( name = "vprm_vgcls",  units = "", vals  = 1:8,  create_dimvar = F )
+  ncdim.zdim        <- ncdim_def( name = "zdim",        units = "", vals  = 1:1,  create_dimvar = F )
   
   # DEFINE VARIABLES
   ncvar.times    <- ncvar_def( name = "Times",         units = "",        dim = list( ncdim.DateStrLen, ncdim.Time        ), prec = "char") 
@@ -185,9 +219,11 @@ f_preprocess.VPRM.for.WRF <- function( input_dir                  = "/work/mj014
   # DEV:
   # Additional dummy variables for Kaplan model that WRF might want.
   # Comment out if not needed
-  ncvar.kaplan.cpool   <- ncvar_def( name = "CPOOL",   units = "gC/m^2",  dim = list( ncdim.west_east, ncdim.south_north, ncdim.veg_type, ncdim.Time ), longname = "LPJ Carbon pool" )
-  ncvar.kaplan.wetmap  <- ncvar_def( name = "WETMAP",  units = "",        dim = list( ncdim.west_east, ncdim.south_north, ncdim.veg_type, ncdim.Time ), longname = "Kaplan potential wetland map" )
-  ncvar.kaplan.t.ann   <- ncvar_def( name = "T_ANN",   units = "K",       dim = list( ncdim.west_east, ncdim.south_north, ncdim.veg_type, ncdim.Time ), longname = "mean annual temperature" )
+  if( add.kaplan.model.input ){
+    ncvar.kaplan.cpool   <- ncvar_def( name = "CPOOL",   units = "gC/m^2",  dim = list( ncdim.west_east, ncdim.south_north, ncdim.zdim, ncdim.Time ), longname = "LPJ Carbon pool" )
+    ncvar.kaplan.wetmap  <- ncvar_def( name = "WETMAP",  units = "",        dim = list( ncdim.west_east, ncdim.south_north, ncdim.zdim, ncdim.Time ), longname = "Kaplan potential wetland map" )
+    ncvar.kaplan.t.ann   <- ncvar_def( name = "T_ANN",   units = "K",       dim = list( ncdim.west_east, ncdim.south_north, ncdim.zdim, ncdim.Time ), longname = "mean annual temperature" )
+  }
   
   
   # Writing output: ============================================================
@@ -226,10 +262,11 @@ f_preprocess.VPRM.for.WRF <- function( input_dir                  = "/work/mj014
     ncvar_put( nc = ncnew, varid = ncvar.vegfra,   vals = as.vector( veg.fra ) )
     
     # DEV: Dummy output for Kaplan model.
-    ncvar_put( nc = ncnew, varid = ncvar.kaplan.cpool,   vals = kaplan.cpool  )
-    ncvar_put( nc = ncnew, varid = ncvar.kaplan.wetmap,  vals = kaplan.wetmap )
-    ncvar_put( nc = ncnew, varid = ncvar.kaplan.t.ann,   vals = kaplan.t.ann  )
-    
+    if( add.kaplan.model.input ){
+      ncvar_put( nc = ncnew, varid = ncvar.kaplan.cpool,   vals = kaplan.cpool  )
+      ncvar_put( nc = ncnew, varid = ncvar.kaplan.wetmap,  vals = kaplan.wetmap )
+      ncvar_put( nc = ncnew, varid = ncvar.kaplan.t.ann,   vals = kaplan.t.ann  )
+    }
     
     
     # GLOBAL ATTRIBUTES (varid = 0 means global):
@@ -257,7 +294,7 @@ f_preprocess.VPRM.for.WRF <- function( input_dir                  = "/work/mj014
     # ncatt_put( nc = ncnew, varid = 0, attname = "ISICE" )
     # ncatt_put( nc = ncnew, varid = 0, attname = "ISURBAN" )
     # ncatt_put( nc = ncnew, varid = 0, attname = "ISOILWATER" )
-    
+    ncatt_put( nc = ncnew, varid = 0, attname = "Source", attval = "WRF input file created by vprm_shapeshifter (MPI-BGC Jena 2018)")
     
     # VARIABLE ATTRIBUTES:
     ncatt_put( nc = ncnew, varid = ncvar.times, attname = "description", attval = "WRF-format date_time string" )
@@ -325,26 +362,28 @@ f_preprocess.VPRM.for.WRF <- function( input_dir                  = "/work/mj014
     
     
     # DEV: Dummy output for Kaplan model
-    ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "FieldType", attval = 104, prec = "int" )
-    ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "MemoryOrder", attval = "XYZ" )
-    ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "units", attval = "gC/m^2" )
-    ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "description", attval = "Carbon pool value for Kaplan model" )
-    ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "stagger", attval = "M" )
-    ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "coordinates", attval = "XLONG XLAT" )
-    
-    ncatt_put( nc = ncnew, varid = ncvar.kaplan.wetmap, attname = "FieldType", attval = 104, prec = "int" )
-    ncatt_put( nc = ncnew, varid = ncvar.kaplan.wetmap, attname = "MemoryOrder", attval = "XYZ" )
-    ncatt_put( nc = ncnew, varid = ncvar.kaplan.wetmap, attname = "units", attval = "something something dark side" )
-    ncatt_put( nc = ncnew, varid = ncvar.kaplan.wetmap, attname = "description", attval = "Wetland map for Kaplan model" )
-    ncatt_put( nc = ncnew, varid = ncvar.kaplan.wetmap, attname = "stagger", attval = "M" )
-    ncatt_put( nc = ncnew, varid = ncvar.kaplan.wetmap, attname = "coordinates", attval = "XLONG XLAT" )
-    
-    ncatt_put( nc = ncnew, varid = ncvar.kaplan.t.ann, attname = "FieldType", attval = 104, prec = "int" )
-    ncatt_put( nc = ncnew, varid = ncvar.kaplan.t.ann, attname = "MemoryOrder", attval = "XYZ" )
-    ncatt_put( nc = ncnew, varid = ncvar.kaplan.t.ann, attname = "units", attval = "K" )
-    ncatt_put( nc = ncnew, varid = ncvar.kaplan.t.ann, attname = "description", attval = "Annual mean temperature for vegetation classes" )
-    ncatt_put( nc = ncnew, varid = ncvar.kaplan.t.ann, attname = "stagger", attval = "M" )
-    ncatt_put( nc = ncnew, varid = ncvar.kaplan.t.ann, attname = "coordinates", attval = "XLONG XLAT" )
+    if( add.kaplan.model.input ){
+      ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "FieldType", attval = 104, prec = "int" )
+      ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "MemoryOrder", attval = "XYZ" )
+      ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "units", attval = "gC/m^2" )
+      ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "description", attval = "Carbon pool value for Kaplan model" )
+      ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "stagger", attval = "M" )
+      ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "coordinates", attval = "XLONG XLAT" )
+      
+      ncatt_put( nc = ncnew, varid = ncvar.kaplan.wetmap, attname = "FieldType", attval = 104, prec = "int" )
+      ncatt_put( nc = ncnew, varid = ncvar.kaplan.wetmap, attname = "MemoryOrder", attval = "XYZ" )
+      ncatt_put( nc = ncnew, varid = ncvar.kaplan.wetmap, attname = "units", attval = "something something dark side" )
+      ncatt_put( nc = ncnew, varid = ncvar.kaplan.wetmap, attname = "description", attval = "Wetland map for Kaplan model" )
+      ncatt_put( nc = ncnew, varid = ncvar.kaplan.wetmap, attname = "stagger", attval = "M" )
+      ncatt_put( nc = ncnew, varid = ncvar.kaplan.wetmap, attname = "coordinates", attval = "XLONG XLAT" )
+      
+      ncatt_put( nc = ncnew, varid = ncvar.kaplan.t.ann, attname = "FieldType", attval = 104, prec = "int" )
+      ncatt_put( nc = ncnew, varid = ncvar.kaplan.t.ann, attname = "MemoryOrder", attval = "XYZ" )
+      ncatt_put( nc = ncnew, varid = ncvar.kaplan.t.ann, attname = "units", attval = "K" )
+      ncatt_put( nc = ncnew, varid = ncvar.kaplan.t.ann, attname = "description", attval = "Annual mean temperature for vegetation classes" )
+      ncatt_put( nc = ncnew, varid = ncvar.kaplan.t.ann, attname = "stagger", attval = "M" )
+      ncatt_put( nc = ncnew, varid = ncvar.kaplan.t.ann, attname = "coordinates", attval = "XLONG XLAT" )
+    }
     
     nc_close( ncnew )
     

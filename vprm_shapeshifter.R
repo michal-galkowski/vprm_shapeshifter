@@ -14,10 +14,17 @@ source("f_preprocess.VPRM.for.WRF.R")
 
 
 # Code for example run on Mistral (DKRZ) for CoMet 2018 mission:
-f_preprocess.VPRM.for.WRF( input_dir      = "/work/mj0143/b301033/Data/CoMet_input/Emissions/VPRM_input/yearly",
-                           output_dir     = "/work/mj0143/b301033/Data/CoMet_input/Emissions/VPRM_input/WRF_input",
-                           current.domain = "d01",
-                           current.year   = 2018,
-                           previous.year  = 2018)
+#f_preprocess.VPRM.for.WRF( input_dir      = "/work/mj0143/b301033/Data/CoMet_input/Emissions/VPRM_input/yearly",
+#                           output_dir     = "/work/mj0143/b301033/Data/CoMet_input/Emissions/VPRM_input/WRF_input",
+#                           current.domain = "d01",
+#                           current.year   = 2018 )
 
+# Santiago's
+f_preprocess.VPRM.for.WRF( input_dir      = "/work/mj0143/b301034/data_input/vprm_fields/ATTO_18km",
+                           output_dir     = "/work/mj0143/b301033/Data/ATTO_input/WRF_VPRM/Test1",
+                           current.domain = "d01",
+                           current.year   = 2014,
+                           previous.year  = 2014,
+			   add.kaplan.model.input     = T,
+                           load.precalculated.indices = F)
 
