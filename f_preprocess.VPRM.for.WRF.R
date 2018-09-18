@@ -98,9 +98,9 @@ f_preprocess.VPRM.for.WRF <- function( input_dir,
   lat <- ncvar_get( lswi.nc, varid = "lat")
   
   if( add.kaplan.model.input ){
-    kaplan.cpool  <- ncvar_get( kap.cpool.nc,  varid = "CPOOL")
+    kaplan.cpool  <- ncvar_get( kap.cpool.nc,  varid = "CPOOL")/1000 # Experimental change of units to kgC/m2
     # # ASSUMING that WETMAP is given in percent
-    kaplan.wetmap <- ncvar_get( kap.wetmap.nc, varid = "WETMAP")/100
+    kaplan.wetmap <- ncvar_get( kap.wetmap.nc, varid = "WETMAP")
     kaplan.t.ann  <- ncvar_get( kap.t.ann.nc,  varid = "T_ANN")
     
     # Dummy fields ( for testing, if input not available ):
@@ -387,7 +387,7 @@ f_preprocess.VPRM.for.WRF <- function( input_dir,
     if( add.kaplan.model.input ){
       ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "FieldType", attval = 104, prec = "int" )
       ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "MemoryOrder", attval = "XYZ" )
-      ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "units", attval = "gC/m^2" )
+      ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "units", attval = "kgC/m^2" ) # Unit changed from original to kgC/m2 for experiment
       ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "description", attval = "Carbon pool value for Kaplan model" )
       ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "stagger", attval = "M" )
       ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "coordinates", attval = "XLONG XLAT" )
