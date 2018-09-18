@@ -25,10 +25,12 @@
 # Debugging:
 # On Mistral, one can use these settings for testing purposes:
 # input_dir      = "/work/mj0143/b301033/Data/CoMet_input/Emissions/VPRM_input/yearly/Operational.Data"
-# output_dir     = "/work/mj0143/b301033/Data/CoMet_input/Emissions/VPRM_input/WRF_input"
+# output_dir     = "/work/mj0143/b301033/Projects/WRF_Tools/vprm_shapeshifter/results"
 # current.domain <- "d01"
 # current.year   <- 2018
 # previous.year  <- 2017
+# load.precalculated.indices <- F
+# add.kaplan.model.input     <- F
 
 f_preprocess.VPRM.for.WRF <- function( input_dir,
                                        output_dir,
@@ -54,7 +56,7 @@ f_preprocess.VPRM.for.WRF <- function( input_dir,
   cat("\n===================    for WRF-Chem 3.9.1.1.  =====================", sep = "")
   cat("\n===================         MPI-BGC 2018      =====================", sep = "")
   cat("\n===================================================================", sep = "")
-  cat("\nM.Galkowski, MPI-BGC Jena, 2018", sep = "")
+  cat("\n\nM.Galkowski, MPI-BGC Jena, 2018", sep = "")
   cat("\n")
   cat("Input directory:\n")
   cat("  ", input_dir, "\n", sep = "")
@@ -84,20 +86,28 @@ f_preprocess.VPRM.for.WRF <- function( input_dir,
     kap.t.ann.nc  <- nc_open( file.path( input_dir, paste0( "T_ANN_"  , current.domain, "_", previous.year , ".nc" ) ) )
   }
   
+  
   # Reading the files into the environment. ====================================
   cat("Reading variables from netcdf files... ", sep = "")
   # 1D
   time <- ncvar_get( lswi.nc, varid = "time" )
-  date <- ISOdate( current.year, 01, 01, 00, tz = "UTC" ) + (time-1)*86400
+  modis.dates <- ISOdate( current.year, 01, 01, 00, tz = "UTC" ) + (time-1)*86400
   
   # 2D ( X x Y )
   lon <- ncvar_get( lswi.nc, varid = "lon")
   lat <- ncvar_get( lswi.nc, varid = "lat")
+  
   if( add.kaplan.model.input ){
     kaplan.cpool  <- ncvar_get( kap.cpool.nc,  varid = "CPOOL")
-    # ASSUMING that WETMAP is given in percent
+    # # ASSUMING that WETMAP is given in percent
     kaplan.wetmap <- ncvar_get( kap.wetmap.nc, varid = "WETMAP")/100
     kaplan.t.ann  <- ncvar_get( kap.t.ann.nc,  varid = "T_ANN")
+    
+    # Dummy fields ( for testing, if input not available ):
+    # kaplan.cpool   <- rep( 1, length(lon) )
+    # kaplan.wetmap  <- rep( 1, length(lon) )
+    # kaplan.t.ann   <- rep( 293.15, length(lon) )
+    
   }
   
   # 3D( X x Y x vegetation_class )
@@ -112,17 +122,6 @@ f_preprocess.VPRM.for.WRF <- function( input_dir,
   evi  <- ncvar_get( evi.nc,  varid = "evi" )
   cat( "Done.\n", sep = "")
   
-  # Attributes from a met_em file from one of the runs.
-  # Copying is faster than writing them from scratch.
-  # TODO: Do it anyway, creating a dummy file is suboptimal
-  # attributes.nc        <- nc_open( file.path( input_dir, paste0( "attributes_dummy_file_", current.domain, ".nc" ) ) )
-  # attributes.values    <- ncatt_get( attributes.nc, varid = 0, attname = NA )
-  
-  # Dummy fields:
-  # kaplan.cpool   <- rep( 1, length(veg.fra) )
-  # kaplan.wetmap  <- rep( 1, length(lon)*8 )
-  # kaplan.t.ann   <- rep( 293.15, length(lon)*8 )
-  
   # Closing netcdf connections:
   nc_close( lswi.nc )
   nc_close( evi.nc )
@@ -131,7 +130,7 @@ f_preprocess.VPRM.for.WRF <- function( input_dir,
   nc_close( lswi.max.nc )
   nc_close( lswi.min.nc )
   nc_close( veg_fra.nc )
-  # nc_close( attributes.nc )
+
   if( add.kaplan.model.input ){
     nc_close( kap.cpool.nc )
     nc_close( kap.wetmap.nc )
@@ -144,7 +143,7 @@ f_preprocess.VPRM.for.WRF <- function( input_dir,
   ny <- dim(lon)[2]
   
   # Prepare the output dates:
-  out.dates <- seq( date[1], rev(date)[1], by = "day" )
+  out.dates <- seq( modis.dates[1], rev(modis.dates)[1], by = "day" )
   
   # This conditional block stores the daily lswi and evi intepolated values as
   # an R object in the temporary directory (hard-set) for later usage. Shortens
@@ -160,37 +159,74 @@ f_preprocess.VPRM.for.WRF <- function( input_dir,
     
   } else {
     
-    cat( "Requested new interpolation of EVI and LSWI (load.precalculated.indices = F).\n" )
+    cat( "Requested new interpolation of EVI and LSWI (load.precalculated.indices == F).\n" )
     # Prepare the dummy array that will store intepolated values
     daily.lswi <- array( dim = c( dim( lswi )[1:2], length( out.dates ), dim( lswi )[4] ) )
     daily.evi  <- array( dim = c( dim( evi )[1:2], length( out.dates ), dim( evi )[4] ) )
-    n <- dim(daily.lswi)[1]
-    
     cat("Interpolating EVI and LSWI to daily values... \n", sep = "")
     
-    # Super ugly for-loop structure:
-    for( i in 1:dim(daily.lswi)[1]){
-      cat( "\r  Calculating ncdf longitude band #", i, "/", n, "", sep = "" )
-      for( j in 1:dim(daily.lswi)[2]){
-        for( veg.class.idx in 1:dim(daily.lswi)[4]){
-          
-          x <- date
-          y <- lswi[ i, j, ,veg.class.idx ]
-          daily.lswi[ i, j, , veg.class.idx ] <- approx( x, y, xout = out.dates )$y
-          
-          x <- date
-          y <- evi[ i, j, ,veg.class.idx ]
-          daily.evi[ i, j, , veg.class.idx ] <- approx( x, y, xout = out.dates )$y
-          
-        } # End of for loop with veg.class.idx index.
-      } # End of for loop with j index.
-    } # End of for loop with i index.
+    # A simple wrapper for apply function to accept the approx function
+    # Needed for the apply construct to accept the arguments provided. and
+    # to provide output in appropriate format
+    f_approx_2d <- function( y, dates.in, dates.out ){
+      
+      approx( x = dates.in,
+              y,
+              xout = dates.out)$y #Approx gives x and y - select x only
+      
+    }
     
-    cat("\nSaving interpolated EVI and LSWI indices. It will take some time, the file can be above 500MB...", sep = "")
-    precalculated.indeces.filepath <- paste0( "/work/mj0143/b301033/Projects/CoMet/R/data/daily.evi.and.lswi.", current.domain, ".Rdata" )
-    save( list = c( "daily.lswi", "daily.evi" ),
-          file = precalculated.indeces.filepath )
-    cat(" Done.\n", sep = "")
+    n <- dim(daily.lswi)[4]
+    for( veg.class.idx in 1:dim(daily.lswi)[4] ){
+      
+      cat( "  Calculating ncdf vegetation class #", veg.class.idx, "/", n, "\n", sep = "" )
+      
+      cat( "   Calculating LSWI...\n", sep = "" )
+      interpolated.field <- apply( lswi[,,,veg.class.idx], c(1,2), f_approx_2d, dates.in = modis.dates, dates.out = out.dates )
+      daily.lswi[,,, veg.class.idx] <- aperm( interpolated.field, c(2,3,1) )
+      
+      cat( "   Calculating EVI...\n", sep = "" )
+      interpolated.field <- apply( evi[,,,veg.class.idx], c(1,2), f_approx_2d, dates.in = modis.dates, dates.out = out.dates )
+      daily.evi[,,, veg.class.idx] <- aperm( interpolated.field, c(2,3,1) )
+      
+    }
+    rm( interpolated.field )
+    
+    # ==========================================================================
+    # Simple for-loop structure below was replaced with apply construct
+    # above. These are equivalent. Apply is a little faster.
+    # Comparison of speed (system.time function) for a single domain with half a year
+    # of data to be interpolated: 325x402x161
+    #     "for" loop structure:   233.557 s
+    #     apply structure:        211.772 s
+    # n <- dim(daily.lswi)[1]
+    # system.time({
+    #   for( i in 1:dim(daily.lswi)[1]){
+    #     cat( "\r  Calculating ncdf longitude band #", i, "/", n, "", sep = "" )
+    #     for( j in 1:dim(daily.lswi)[2]){
+    #       for( veg.class.idx in 1:dim(daily.lswi)[4]){
+    #         
+    #         x <- modis.dates
+    #         y <- lswi[ i, j, ,veg.class.idx ]
+    #         daily.lswi[ i, j, , veg.class.idx ] <- approx( x, y, xout = out.dates )$y
+    #         
+    #         x <- modis.dates
+    #         y <- evi[ i, j, ,veg.class.idx ]
+    #         daily.evi[ i, j, , veg.class.idx ] <- approx( x, y, xout = out.dates )$y
+    #         
+    #       } # End of for loop with veg.class.idx index.
+    #     } # End of for loop with j index.
+    #   } # End of for loop with i index.
+    # })
+    
+    
+    # Saving of the interpolated indices as a file to save time
+    # Use only when debugging.
+    # cat("\nSaving interpolated EVI and LSWI indices. It will take some time, the file can be above 500MB...", sep = "")
+    # precalculated.indeces.filepath <- paste0( "/work/mj0143/b301033/Projects/CoMet/R/data/daily.evi.and.lswi.", current.domain, ".Rdata" )
+    # save( list = c( "daily.lswi", "daily.evi" ),
+    #       file = precalculated.indeces.filepath )
+    # cat(" Done.\n", sep = "")
   } # End of if/else with load.precalculated.indices=T/F condition
   
   
@@ -240,14 +276,21 @@ f_preprocess.VPRM.for.WRF <- function( input_dir,
     cat( "\r #", time.idx, "/", n.times, ": ", current.filename, "", sep = "" )
     flush.console()
     
+    # CREATE A LIST OF ALL VARIABLES
+    list.of.variables <- list( ncvar.times,
+                               ncvar.xlong, ncvar.xlat,
+                               ncvar.evi_min, ncvar.evi_max, ncvar.evi,
+                               ncvar.lswi_min, ncvar.lswi_max, ncvar.lswi,
+                               ncvar.vegfra )
+    
+    if( add.kaplan.model.input ){
+      list.of.variables <- c( list.of.variables,
+                              list( ncvar.kaplan.cpool, ncvar.kaplan.wetmap, ncvar.kaplan.t.ann) )
+    }
+    
     # CREATE NCDF FILE AND ASSIGN VALUES TO VARIABLES
     ncnew <- nc_create( filename = file.path( output_dir, current.filename ),
-                        vars     = list( ncvar.times,
-                                         ncvar.xlong, ncvar.xlat,
-                                         ncvar.evi_min, ncvar.evi_max, ncvar.evi,
-                                         ncvar.lswi_min, ncvar.lswi_max, ncvar.lswi,
-                                         ncvar.vegfra,
-                                         ncvar.kaplan.cpool, ncvar.kaplan.wetmap, ncvar.kaplan.t.ann),
+                        vars     = list.of.variables,
                         force_v4 = F)
     
     ncvar_put( nc = ncnew, varid = ncvar.times,    vals = current.date.code )
@@ -270,31 +313,10 @@ f_preprocess.VPRM.for.WRF <- function( input_dir,
     
     
     # GLOBAL ATTRIBUTES (varid = 0 means global):
-    # Right now copying from wrfinput/met_em files.
-    # Optimally change that to include only what is necessary
-    # for( i in 1:length(attributes.values) ){
-    #   ncatt_put( nc = ncnew, varid = 0, attname = names( attributes.values[i] ), attval = attributes.values[[i]] )
-    # }
-    
-    # ncatt_put( nc = ncnew, varid = 0, attname = "CEN_LAT" )
-    # ncatt_put( nc = ncnew, varid = 0, attname = "CEN_LON" )
-    # ncatt_put( nc = ncnew, varid = 0, attname = "TRUELAT1" )
-    # ncatt_put( nc = ncnew, varid = 0, attname = "TRUELAT2" )
-    # ncatt_put( nc = ncnew, varid = 0, attname = "MOAD_CEN_LAT" )
-    # ncatt_put( nc = ncnew, varid = 0, attname = "STAND_LON" )
-    # ncatt_put( nc = ncnew, varid = 0, attname = "POLE_LAT" )
-    # ncatt_put( nc = ncnew, varid = 0, attname = "POLE_LON" )
-    # ncatt_put( nc = ncnew, varid = 0, attname = "GMT" )
-    # ncatt_put( nc = ncnew, varid = 0, attname = "JULYR" )
-    # ncatt_put( nc = ncnew, varid = 0, attname = "JULDAY" )
-    # ncatt_put( nc = ncnew, varid = 0, attname = "MAP_PROJ" )
-    # ncatt_put( nc = ncnew, varid = 0, attname = "MMINLU" )
-    # ncatt_put( nc = ncnew, varid = 0, attname = "ISWATER" )
-    # ncatt_put( nc = ncnew, varid = 0, attname = "ISLAKE" )
-    # ncatt_put( nc = ncnew, varid = 0, attname = "ISICE" )
-    # ncatt_put( nc = ncnew, varid = 0, attname = "ISURBAN" )
-    # ncatt_put( nc = ncnew, varid = 0, attname = "ISOILWATER" )
+    # These are optional, so I limited the list to a short metadata. More can
+    # be added on request.
     ncatt_put( nc = ncnew, varid = 0, attname = "Source", attval = "WRF input file created by vprm_shapeshifter (MPI-BGC Jena 2018)")
+    
     
     # VARIABLE ATTRIBUTES:
     ncatt_put( nc = ncnew, varid = ncvar.times, attname = "description", attval = "WRF-format date_time string" )
@@ -361,7 +383,7 @@ f_preprocess.VPRM.for.WRF <- function( input_dir,
     ncatt_put( nc = ncnew, varid = ncvar.vegfra, attname = "coordinates", attval = "XLONG XLAT" )
     
     
-    # DEV: Dummy output for Kaplan model
+    # WRF-GHG Kaplan model input
     if( add.kaplan.model.input ){
       ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "FieldType", attval = 104, prec = "int" )
       ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "MemoryOrder", attval = "XYZ" )
