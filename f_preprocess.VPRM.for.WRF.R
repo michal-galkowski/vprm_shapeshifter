@@ -2,7 +2,7 @@
 # Preparing daily, interpolated VPRM input netcdf files for WRF-GHG 3.9.1.1 runs.
 # Interpolation is done treating EVI and LSWI as linear functions of time for each grid cell.
 #
-# Input:    input_dir     - directory with MODIS indices (EVI+min+max,
+# Input:    vprm_input_dir     - directory with MODIS indices (EVI+min+max,
 #                           LSWI+min+max, vegetation_fractions) - full path
 #                           recommended
 #           output_dir    - where the output will be stored (full path
@@ -17,6 +17,8 @@
 #           load.precalculated.indices - debug only
 #           add.kaplan.model.input - If input for Kaplan model is available in the input
 #                           dir, it's enabled by this flag
+#                           Files need to be located in the input dir and named:
+#                           CPOOL_d01.nc, WETMAP_d01.nc, T_ANN_d01.nc
 #
 # Output:   FILES ONLY    - A year-worth of netcdf files with daily-averaged EVI and
 #                           LSWI indices.
@@ -24,7 +26,7 @@
 
 # Debugging:
 # On Mistral, one can use these settings for testing purposes:
-# input_dir      = "/work/mj0143/b301033/Data/CoMet_input/Emissions/VPRM_input/yearly/Operational.Data"
+# vprm_input_dir = "/work/mj0143/b301033/Data/CoMet_input/Emissions/VPRM_input/yearly/Operational.Data"
 # output_dir     = "/work/mj0143/b301033/Projects/WRF_Tools/vprm_shapeshifter/results"
 # current.domain <- "d01"
 # current.year   <- 2018
@@ -32,13 +34,14 @@
 # load.precalculated.indices <- F
 # add.kaplan.model.input     <- F
 
-f_preprocess.VPRM.for.WRF <- function( input_dir,
+f_preprocess.VPRM.for.WRF <- function( vprm_input_dir,
                                        output_dir,
                                        current.domain             = "d01",
                                        current.year               = 2018,
                                        previous.year              = NULL,
                                        load.precalculated.indices = F,
-                                       add.kaplan.model.input     = F){
+                                       add.kaplan.model.input     = F,
+                                       kaplan_input_dir           = NULL ){
   
   # Previous year paramter is only needed when dealing with a year for which
   # only partial MODIS data is available. The code will then ALSO use previous
@@ -46,7 +49,7 @@ f_preprocess.VPRM.for.WRF <- function( input_dir,
   # LSWI_MAX and LSWI_MIN. Otherwise it is assumed that all data come from
   # a single year.
   if( is.null( previous.year) ){
-    previous.year = current.year
+    previous.year <- current.year
   }
   
   library(ncdf4)
@@ -59,7 +62,7 @@ f_preprocess.VPRM.for.WRF <- function( input_dir,
   cat("\n\nM.Galkowski, MPI-BGC Jena, 2018", sep = "")
   cat("\n")
   cat("Input directory:\n")
-  cat("  ", input_dir, "\n", sep = "")
+  cat("  ", vprm_input_dir, "\n", sep = "")
   cat("Outputt directory:\n")
   cat("  ", output_dir, "\n", sep = "")
   cat("Selected domain:\n")
@@ -67,23 +70,29 @@ f_preprocess.VPRM.for.WRF <- function( input_dir,
   
   # Values of LSWI and EVI will be read from CURRENT YEAR dataset and then
   # interpolated
-  lswi.nc <- nc_open( file.path( input_dir, paste0( "VPRM_input_LSWI_", current.domain, "_", current.year , ".nc" ) ) )
-  evi.nc  <- nc_open( file.path( input_dir, paste0( "VPRM_input_EVI_", current.domain, "_", current.year , ".nc" ) ) )
+  lswi.nc <- nc_open( file.path( vprm_input_dir, paste0( "VPRM_input_LSWI_", current.domain, "_", current.year , ".nc" ) ) )
+  evi.nc  <- nc_open( file.path( vprm_input_dir, paste0( "VPRM_input_EVI_", current.domain, "_", current.year , ".nc" ) ) )
   
   # Values of min and max indices as well as vegetation fraction will be read from
   # PREVIOUS YEAR datasets
   
-  evi.max.nc  <- nc_open( file.path( input_dir, paste0( "VPRM_input_EVI_MAX_" , current.domain, "_", previous.year , ".nc" ) ) )
-  evi.min.nc  <- nc_open( file.path( input_dir, paste0( "VPRM_input_EVI_MIN_" , current.domain, "_", previous.year , ".nc" ) ) )
-  lswi.max.nc <- nc_open( file.path( input_dir, paste0( "VPRM_input_LSWI_MAX_", current.domain, "_", previous.year , ".nc" ) ) )
-  lswi.min.nc <- nc_open( file.path( input_dir, paste0( "VPRM_input_LSWI_MIN_", current.domain, "_", previous.year , ".nc" ) ) )
-  veg_fra.nc  <- nc_open( file.path( input_dir, paste0( "VPRM_input_VEG_FRA_" , current.domain, "_", previous.year , ".nc" ) ) )
+  evi.max.nc  <- nc_open( file.path( vprm_input_dir, paste0( "VPRM_input_EVI_MAX_" , current.domain, "_", previous.year , ".nc" ) ) )
+  evi.min.nc  <- nc_open( file.path( vprm_input_dir, paste0( "VPRM_input_EVI_MIN_" , current.domain, "_", previous.year , ".nc" ) ) )
+  lswi.max.nc <- nc_open( file.path( vprm_input_dir, paste0( "VPRM_input_LSWI_MAX_", current.domain, "_", previous.year , ".nc" ) ) )
+  lswi.min.nc <- nc_open( file.path( vprm_input_dir, paste0( "VPRM_input_LSWI_MIN_", current.domain, "_", previous.year , ".nc" ) ) )
+  veg_fra.nc  <- nc_open( file.path( vprm_input_dir, paste0( "VPRM_input_VEG_FRA_" , current.domain, "_", previous.year , ".nc" ) ) )
   
-  # Added reading of the files necessary for CH4 wetland emissions (implementation: Santiago Botia & Mike Galkowski)
+  # Added reading of the files necessary for CH4 wetland emissions
   if( add.kaplan.model.input ){
-    kap.cpool.nc  <- nc_open( file.path( input_dir, paste0( "CPOOL_"  , current.domain, "_", previous.year , ".nc" ) ) )
-    kap.wetmap.nc <- nc_open( file.path( input_dir, paste0( "WETMAP_" , current.domain, "_", previous.year , ".nc" ) ) )
-    kap.t.ann.nc  <- nc_open( file.path( input_dir, paste0( "T_ANN_"  , current.domain, "_", previous.year , ".nc" ) ) )
+      
+      if( is.null( kaplan_input_dir ) ){
+          cat("You did not provide separate directory for Kaplan input. We will assume it is located in vprm_input_dir, puny human.")
+          kaplan_input_dir <- vprm_input_dir
+      }
+      
+    kap.cpool.nc  <- nc_open( file.path( kaplan_input_dir, paste0( "CPOOL_"  , current.domain, ".nc" ) ) )
+    kap.wetmap.nc <- nc_open( file.path( kaplan_input_dir, paste0( "WETMAP_" , current.domain , ".nc" ) ) )
+    kap.t.ann.nc  <- nc_open( file.path( kaplan_input_dir, paste0( "T_ANN_"  , current.domain , ".nc" ) ) )
   }
   
   
