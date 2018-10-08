@@ -10,7 +10,7 @@
 # file.
 
 # This script runs on Mistral, DKRZ.
-source("f_preprocess.VPRM.for.WRF.R")
+source("/work/mj0143/b301033/Projects/WRF_Tools/vprm_shapeshifter/f_preprocess.VPRM.for.WRF.R")
 
 
 # Code for example run on Mistral (DKRZ) for CoMet 2018 mission:

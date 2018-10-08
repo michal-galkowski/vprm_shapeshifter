@@ -86,7 +86,7 @@ f_preprocess.VPRM.for.WRF <- function( vprm_input_dir,
   if( add.kaplan.model.input ){
       
       if( is.null( kaplan_input_dir ) ){
-          cat("You did not provide separate directory for Kaplan input. We will assume it is located in vprm_input_dir, puny human.")
+          cat("You did not provide separate directory for Kaplan input. We will assume it is located in vprm_input_dir, puny human.\n")
           kaplan_input_dir <- vprm_input_dir
       }
       
