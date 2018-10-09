@@ -10,31 +10,13 @@
 # file.
 
 # This script runs on Mistral, DKRZ.
-source("f_preprocess.VPRM.for.WRF.R")
+source("/work/mj0143/b301033/Projects/WRF_Tools/vprm_shapeshifter/f_preprocess.VPRM.for.WRF.R")
 
-
-# Code for example run on Mistral (DKRZ) for CoMet 2018 mission:
-#f_preprocess.VPRM.for.WRF( input_dir      = "/work/mj0143/b301033/Data/CoMet_input/Emissions/VPRM_input/yearly",
-#                           output_dir     = "/work/mj0143/b301033/Data/CoMet_input/Emissions/VPRM_input/WRF_input",
-#                           current.domain = "d01",
-#                           current.year   = 2018 )
 
 # Santiago Botia: ATTO/Amazon domain
-f_preprocess.VPRM.for.WRF( input_dir      = "/work/mj0143/b301034/data_input/vprm_fields/RAW_VPRM_Gerbig/ATTO_27_9_3_1kmV3",
-                           output_dir     = "/work/mj0143/b301034/data_input/vprm_fields/WRF_ready_files/ATTO_27_9_3_1kmV3",
-                           current.domain = "d04",
-                           current.year   = 2014,
-                           previous.year  = 2014,
-                           add.kaplan.model.input     = T,
-                           load.precalculated.indices = F)
-
-
-
-# DEVELOPMENT / TESTS ##########################################################################################3
-# Code for example run on Mistral (DKRZ) for development / testing:
-#f_preprocess.VPRM.for.WRF( input_dir      = "/work/mj0143/b301033/Data/CoMet_input/Emissions/VPRM_input/yearly",
-#                          output_dir     = "/work/mj0143/b301033/Projects/WRF_Tools/vprm_shapeshifter/results",
-                        #  current.domain = "d01",
-                         # current.year   = 2018,
-                         # add.kaplan.model.input     = F,
-                         # load.precalculated.indices = F )
+f_preprocess.VPRM.for.WRF( input_dir         = "/work/mj0143/b301034/data_input/vprm_fields/RAW_VPRM_Gerbig/ATTO_27_9_3_1kmV3",
+                           output_dir        = "/work/mj0143/b301034/data_input/vprm_fields/WRF_ready_files/ATTO_27_9_3_1kmV3",
+                           requested.domains = "d04",
+                           current.year      = 2014,
+                           previous.year     = 2014,
+                           add.kaplan.model.input     = T )
