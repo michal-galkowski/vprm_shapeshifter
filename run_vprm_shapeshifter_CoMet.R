@@ -10,11 +10,11 @@
 # file.
 
 # This script runs on Mistral, DKRZ.
-source("/work/mj0143/b301033/Projects/WRF_Tools/vprm_shapeshifter/f_preprocess.VPRM.for.WRF.R")
+source("/work/mj0143/b301033/Projects/WRF_Tools/vprm_shapeshifter/f_vprm_shapeshifter.R")
 
 
 # Code for example run on Mistral (DKRZ) for CoMet 2018 mission:
-f_preprocess.VPRM.for.WRF( vprm_input_dir    = "/work/mj0143/b301033/Data/CoMet_input/Emissions/VPRM_input/MODIS_indices",
+f_vprm_shapeshifter( vprm_input_dir    = "/work/mj0143/b301033/Data/CoMet_input/Emissions/VPRM_input/MODIS_indices",
                            output_dir        = "/work/mj0143/b301033/Data/CoMet_input/Emissions/VPRM_input/WRF_input",
                            requested.domains = c("d01", "d02", "d03"),
                            current.year      = 2018,
