@@ -1,4 +1,4 @@
-# Function: f_preprocess.VPRM.for.WRF
+# Function: f_vprm_shapeshifter
 # Preparing daily, interpolated VPRM input netcdf files for WRF-GHG 3.9.1.1 runs.
 # Interpolation is done treating EVI and LSWI as linear functions of time for each grid cell.
 #
@@ -35,14 +35,14 @@
 # load.precalculated.indices <- F
 # add.kaplan.model.input     <- F
 
-f_preprocess.VPRM.for.WRF <- function( vprm_input_dir,
-                                       output_dir,
-                                       requested.domains          = "d01",
-                                       current.year               = 2018,
-                                       previous.year              = NULL,
-                                       load.precalculated.indices = F,
-                                       add.kaplan.model.input     = F,
-                                       kaplan_input_dir           = NULL ){
+f_vprm_shapeshifter <- function( vprm_input_dir,
+                                 output_dir,
+                                 requested.domains          = "d01",
+                                 current.year               = 2018,
+                                 previous.year              = NULL,
+                                 load.precalculated.indices = F,
+                                 add.kaplan.model.input     = F,
+                                 kaplan_input_dir           = NULL ){
   
   # Previous year paramter is only needed when dealing with a year for which
   # only partial MODIS data is available. The code will then ALSO use previous
