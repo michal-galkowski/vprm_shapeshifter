@@ -403,7 +403,7 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
       if( add.kaplan.model.input ){
         ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "FieldType", attval = 104, prec = "int" )
         ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "MemoryOrder", attval = "XYZ" )
-        ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "units", attval = "kgC/m^2" ) # Unit changed from original to kgC/m2 for experiment
+        ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "units", attval = "kgC/m^2" )
         ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "description", attval = "Carbon pool value for Kaplan model" )
         ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "stagger", attval = "M" )
         ncatt_put( nc = ncnew, varid = ncvar.kaplan.cpool, attname = "coordinates", attval = "XLONG XLAT" )

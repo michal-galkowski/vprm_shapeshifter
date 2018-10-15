@@ -4,18 +4,14 @@
 # M. Galkowski, MPI-BGC Jena, 2018
 
 
-# Operational folder for preparing WRF-input for CoMet runs.
-# Main function enables running for a single domain, which is selected
-# in the function call below. For detailed description, see function source
-# file.
-
 # This script runs on Mistral, DKRZ.
 source("f_vprm_shapeshifter.R")
 # If it's desired to run the script from any location, the line above needs to be expanded to full path.
 # source("[full_path]/f_preprocess.VPRM.for.WRF.R")
 
 
-# Code for example run on Mistral (DKRZ) for CoMet 2018 mission:
+# Main function call. Replace paths here with appropriate directories.
+# For detailed description of the variables, see function source file (f_vprm_shapeshifter.R)
 f_vprm_shapeshifter( vprm_input_dir         = "/work/mj0143/b301033/Data/MODIS_indices/_test",    # MODIS indices on WRF domains (e.g. EVI_2018_d03.nc)
                      output_dir             = "/work/mj0143/b301033/Data/VPRM_input/WRF_input/_test",  # where vprm_input files will be
                      requested.domains      = c("d01", "d02", "d03"),

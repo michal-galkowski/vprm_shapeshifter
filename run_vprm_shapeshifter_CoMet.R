@@ -4,10 +4,7 @@
 # M. Galkowski, MPI-BGC Jena, 2018
 
 
-# Operational folder for preparing WRF-input for CoMet runs.
-# Main function enables running for a single domain, which is selected
-# in the function call below. For detailed description, see function source
-# file.
+# For detailed description of the variables, see function source file (f_vprm_shapeshifter.R)
 
 # This script runs on Mistral, DKRZ.
 source("/work/mj0143/b301033/Projects/WRF_Tools/vprm_shapeshifter/f_vprm_shapeshifter.R")
