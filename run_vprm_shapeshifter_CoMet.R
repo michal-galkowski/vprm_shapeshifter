@@ -11,10 +11,11 @@ source("/work/mj0143/b301033/Projects/WRF_Tools/vprm_shapeshifter/f_vprm_shapesh
 
 
 # Code for example run on Mistral (DKRZ) for CoMet 2018 mission:
-f_vprm_shapeshifter( vprm_input_dir    = "/work/mj0143/b301033/Data/CoMet_input/Emissions/VPRM_input/MODIS_indices",
+f_vprm_shapeshifter( vprm_input_dir    = "/work/mj0143/b301033/Data/CoMet_input/Emissions/VPRM_input/MODIS_indices/JFS.Reanalysis_v1",
                            output_dir        = "/work/mj0143/b301033/Data/CoMet_input/Emissions/VPRM_input/WRF_input",
-                           requested.domains = c("d01", "d02", "d03"),
+                           requested.domains = "d03", #c("d01", "d02", "d03"),
                            current.year      = 2018,
+                           #previous.year     = 2017, NOT AVAILABLE FOR D03 expanded to Belchatow
                            add.kaplan.model.input = T,
                            kaplan_input_dir  = "/work/mj0143/b301033/Data/CoMet_input/Emissions/VPRM_input/Kaplan_wetlands/vprm_shapeshifter_input")
 

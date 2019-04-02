@@ -1,7 +1,11 @@
-VPRM Shapeshifter v1.2
+VPRM Shapeshifter v1.3
 Michal Galkowski
 MPI-BGC Jena, October 2018
 michal.galkowski@bgc-jena.mpg.de
+
+Changelog:
+v1.3 - Added netcdf parameters necessary for appropriate Land-Use setup in WRF-Simulations.
+
 
 Tool to preprocess data of MODIS indices for VPRM in WRF-GHG v3.9.1.1.
 Designed to run on Mistral DKRZ cluster, but should be easily ported
@@ -9,7 +13,7 @@ to any linux machine. For help with running on other machines, please
 contact the author.
 
 Requirements:
-R                - version > 3.0 (only tested on 3.3.3 and 3.5.0)
+R                - version > 3.0 (tested on 3.3.3 and 3.5.0)
 R ncdf4 library  - available on R startup on Mistral
 git              - available on Mistral by default
 
@@ -33,7 +37,7 @@ Note: Kaplan input for CH4 biogenic emissions is optional
 5. Run the script from:
 a) command line:
 $ Rscript run_vprm_shapeshifter.R
-b) inside R:
+b) OR from inside R:
 > source("run_vprm_shapeshifter.R")
 
 6. Output will be written into the output dir in the form of daily WRF inputs

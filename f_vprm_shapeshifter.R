@@ -5,6 +5,9 @@
 # Input:    vprm_input_dir     - directory with MODIS indices (EVI+min+max,
 #                                LSWI+min+max, vegetation_fractions) - full path
 #                                recommended
+#           geo_em_input_dir   - directory with geo_em_dXX files. Will be used
+#                                to set the global attributs, necessary for appropriate
+#                                handling of the land-use settings. Introduced in v1.2
 #           output_dir         - where the output will be stored (full path
 #                                recommended)
 #           current.domain - character string corresponding to the WRF domain
@@ -27,15 +30,18 @@
 
 # Debugging:
 # On Mistral, one can use these settings for testing purposes:
-# vprm_input_dir = "/work/mj0143/b301033/Data/CoMet_input/Emissions/VPRM_input/yearly/Operational.Data"
-# output_dir     = "/work/mj0143/b301033/Projects/WRF_Tools/vprm_shapeshifter/results"
-# current.domain <- "d01"
+# vprm_input_dir   <- "/work/mj0143/b301033/Data/CoMet_input/Emissions/VPRM_input/MODIS_indices/JFS.Reanalysis_v2",
+#
+# geo_em_input_dir <- "/work/mj0143/b301033/Data/CoMet_input/Domains/reanalysis_v2"
+# output_dir     <- "/work/mj0143/b301033/Projects/WRF_Tools/vprm_shapeshifter/results"
+# requested.domains <- "d01"
 # current.year   <- 2018
-# previous.year  <- 2017
+# previous.year  <- NULL
 # load.precalculated.indices <- F
 # add.kaplan.model.input     <- F
 
 f_vprm_shapeshifter <- function( vprm_input_dir,
+                                 geo_em_input_dir,
                                  output_dir,
                                  requested.domains          = "d01",
                                  current.year               = 2018,
@@ -54,11 +60,13 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
   }
   
   library(ncdf4)
+  library(lubridate)
+  library(tibble)
   
   cat("\n===================================================================", sep = "")
   cat("\n===================     VPRM Shapeshifter     =====================", sep = "")
   cat("\n===================    for WRF-Chem 3.9.1.1.  =====================", sep = "")
-  cat("\n===================            v. 1.1         =====================", sep = "")
+  cat("\n===================            v. 1.3         =====================", sep = "")
   cat("\n===================         MPI-BGC 2018      =====================", sep = "")
   cat("\n===================================================================", sep = "")
   cat("\n")
@@ -66,6 +74,8 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
   cat("\n")
   cat("\nInput directory:\n")
   cat("  ", vprm_input_dir, "\n", sep = "")
+  cat("\nDirectory with geo_em_dXX files:\n")
+  cat("  ", geo_em_input_dir, "\n", sep = "")
   cat("\nOutput directory:\n")
   cat("  ", output_dir, "\n", sep = "")
   cat("\nDomains requested:\n")
@@ -77,6 +87,67 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
     cat("\n-------------------------------------------------------------------", sep = "")
     cat("\nStarting preprocessing of domain ", current.domain, "\n", sep = "")
     cat("\n")
+    
+    
+    
+    
+    
+    # Get the domain configuration from geogrid file ===============================
+    cat("Reading domain parameters from: \n")
+    path_to_geogrid_file <- file.path( geo_em_input_dir, paste0( "geo_em.", current.domain, ".nc" ) )
+    cat("  ", path_to_geogrid_file, "\n")
+    
+    geo_em_file <- nc_open( path_to_geogrid_file )
+    
+    lon      <- ncvar_get( geo_em_file, varid = "XLONG_M")
+    lat      <- ncvar_get( geo_em_file, varid = "XLAT_M")
+    
+    n_x <- ncatt_get( geo_em_file, varid = 0, attname = "WEST-EAST_PATCH_END_UNSTAG")$value
+    n_y <- ncatt_get( geo_em_file, varid = 0, attname = "SOUTH-NORTH_PATCH_END_UNSTAG")$value
+    
+    # Get necessary attributes
+    geo_em_attributes_floats <- tibble(
+      attname = c( "CEN_LAT", "CEN_LON", "TRUELAT1", "TRUELAT2", "MOAD_CEN_LAT", "STAND_LON",
+                   "POLE_LAT", "POLE_LON" ),
+      value = NA,
+      precision = "float"
+    )
+    for( i in 1:nrow(geo_em_attributes_floats) ){
+      geo_em_attributes_floats$value[i] <- ncatt_get( geo_em_file, varid = 0, attname = geo_em_attributes_floats$attname[i] )$value
+    }
+    
+    geo_em_attributes_ints <- tibble(
+      attname = c( "MAP_PROJ", "NUM_LAND_CAT", "ISWATER", "ISLAKE", "ISICE", "ISURBAN", "ISOILWATER" ),
+      value = NA,
+      precision = "int"
+    )
+    for( i in 1:nrow(geo_em_attributes_ints) ){
+      geo_em_attributes_ints$value[i] <- ncatt_get( geo_em_file, varid = 0, attname = geo_em_attributes_ints$attname[i] )$value
+    }
+    
+    geo_em_attribute_MMINLU <- ncatt_get( geo_em_file, varid = 0, attname = "MMINLU" )$value
+    
+    # DEPRECATED
+    # geo_em_atrributes <- tibble(
+    #   attname = c("CEN_LAT", "CEN_LON", "TRUELAT1", "TRUELAT2", "MOAD_CEN_LAT", "STAND_LON",
+    #               "POLE_LAT", "POLE_LON", "MAP_PROJ",
+    #               "MMINLU", "NUM_LAND_CAT", "ISWATER", "ISLAKE", "ISICE", "ISURBAN", "ISOILWATER" ),
+    #   # value = as.character("")
+    #   value = NA,
+    #   precision = c("float", "float", "float", "float", "float", "float", 
+    #                 "float", "float", "int",
+    #                 "text", "int", "int", "int", "int", "int", "int")
+    # )
+    # for( i in 1:nrow(geo_em_atrributes) ){
+    #   geo_em_atrributes$value[i] <- ncatt_get( geo_em_file, varid = 0, attname = geo_em_atrributes$attname[i] )$value
+    # }
+    
+    nc_close( geo_em_file )
+    
+    
+    
+    
+    
     # Values of LSWI and EVI will be read from CURRENT YEAR dataset and then
     # interpolated
     lswi.nc <- nc_open( file.path( vprm_input_dir, paste0( "VPRM_input_LSWI_", current.domain, "_", current.year , ".nc" ) ) )
@@ -328,10 +399,54 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
       }
       
       
+      
+      
+      
       # GLOBAL ATTRIBUTES (varid = 0 means global):
-      # These are optional, so I limited the list to a short metadata. More can
-      # be added on request.
-      ncatt_put( nc = ncnew, varid = 0, attname = "Source", attval = "WRF input file created by vprm_shapeshifter (MPI-BGC Jena 2018)")
+      # These are NOT optional. Not having those attributes set can cause issues
+      # with the land-use settings during simulation!!!
+      # Michal Galkowski, April 2019
+      
+      # These are NECESSARY, because WRF actually reads those. And not only reads,
+      # but landuse information is the one that drives the model.
+      # See logfile entry from March 8, 2019
+      ncatt_put( nc = ncnew, varid = 0, attname = "Source", attval = "WRF input file created by vprm_shapeshifter, v1.2 (MPI-BGC Jena 2018)")
+      
+      
+      for( i in 1:nrow(geo_em_attributes_floats) ){
+        ncatt_put( nc = ncnew,
+                   varid = 0,
+                   attname = geo_em_attributes_floats$attname[i],
+                   attval  = geo_em_attributes_floats$value[i],
+                   prec    = geo_em_attributes_floats$precision[i] )
+      } # End of writing attributes from geo_em_attributes_floats
+      
+      for( i in 1:nrow(geo_em_attributes_ints) ){
+        ncatt_put( nc = ncnew,
+                   varid = 0,
+                   attname = geo_em_attributes_ints$attname[i],
+                   attval  = geo_em_attributes_ints$value[i],
+                   prec    = geo_em_attributes_ints$precision[i] )
+      } # End of writing attributes from geo_em_attributes_ints
+      
+      # Now, write also additional time-dependent attributes.
+      ncatt_put( nc = ncnew, varid = 0, attname = "MMINLU", attval = geo_em_attribute_MMINLU, prec = "text" )
+      ncatt_put( nc = ncnew, varid = 0, attname = "GMT", attval = 0, prec = "float")
+      ncatt_put( nc = ncnew, varid = 0, attname = "JULYR", attval = year( out.dates[time.idx] ), prec = "int" )
+      ncatt_put( nc = ncnew, varid = 0, attname = "JULDAY", attval = yday( out.dates[time.idx] ), prec = "int" )
+      
+      # DEPRECATED
+      # for( i in 1:nrow(geo_em_atrributes) ){
+      #   ncatt_put( nc = ncnew,
+      #              varid = 0,
+      #              attname = geo_em_atrributes$attname[i],
+      #              attval  = geo_em_atrributes$value[i],
+      #              prec    = geo_em_atrributes$precision[i] )
+      # } # End of writing attributes from geo_em
+      
+      
+      
+      
       
       
       # VARIABLE ATTRIBUTES:
