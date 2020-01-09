@@ -4,6 +4,6 @@
 .Ruserdata
 
 results/
+input/
 .ipynb_checkpoints/
-run_vprm_shapeshifter_CoMet.R
-run_vprm_shapeshifter_Lipiec2018.R
+run_vprm_shapeshifter_*

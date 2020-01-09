@@ -20,10 +20,12 @@
 #           load.precalculated.indices - debug only
 #           add.kaplan.model.input - If input for Kaplan model is available in the input
 #                                    dir, it's enabled by this flag
-#                                    Files need to be located in the input dir and named:
-#                                    cpool_fast_LPJ_cdo_d01.nc, wetland_kaplan__d01.nc, t_annual__d01.nc
 #           kaplan_input_dir - [optional] provide directory with input for Kaplan
 #                              will assume vprm_input_dir if not specified
+#                              Files need to be located in the input dir and named [units in brackets]:
+#                              cpool_fast_LPJ_cdo_dXX.nc [kgC/m2/month],
+#                              wetland_kaplan_dXX.nc [fraction (0-1 range)],
+#                              t_annual_dXX.nc [K]
 # Output:   FILES ONLY    - A year-worth of netcdf files with daily-averaged EVI and
 #                           LSWI indices. Will be stored in output_dir
 
@@ -43,12 +45,15 @@
 f_vprm_shapeshifter <- function( vprm_input_dir,
                                  geo_em_input_dir,
                                  output_dir,
-                                 requested.domains          = "d01",
-                                 current.year               = 2018,
-                                 previous.year              = NULL,
-                                 load.precalculated.indices = F,
-                                 add.kaplan.model.input     = F,
-                                 kaplan_input_dir           = NULL ){
+                                 requested.domains           = "d01",
+                                 current.year                = 2018,
+                                 previous.year               = NULL,
+                                 load.precalculated.indices  = F,
+                                 add.kaplan.model.input      = F,
+                                 kaplan_input_dir            = NULL,
+                                 kaplan_cpool_file_pattern    = "cpool_fast_LPJ_cdo_dXX.nc", #e.g. cpool_fast_LPJ_cdo_d01.nc
+                                 kaplan_wetland_file_pattern  = "wetland_kaplan_dXX.nc",
+                                 kaplan_t_annual_file_pattern = "t_annual_dXX.nc" ){
   
   # Previous year paramter is only needed when dealing with a year for which
   # only partial MODIS data is available. The code will then ALSO use previous
@@ -169,10 +174,14 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
         cat("You did not provide separate directory for Kaplan input. We will assume it is located in vprm_input_dir, puny human.\n")
         kaplan_input_dir <- vprm_input_dir
       }
+
+      kap.cpool.file  <- sub( "dXX", current.domain, kaplan_cpool_file_pattern )
+      kap.wetmap.file <- sub( "dXX", current.domain, kaplan_wetland_file_pattern )
+      kap.t.ann.file  <- sub( "dXX", current.domain, kaplan_t_annual_file_pattern )
       
-      kap.cpool.nc  <- nc_open( file.path( kaplan_input_dir, paste0( "cpool_fast_LPJ_cdo_"  , current.domain, ".nc" ) ) )
-      kap.wetmap.nc <- nc_open( file.path( kaplan_input_dir, paste0( "wetland_kaplan_"      , current.domain , ".nc" ) ) )
-      kap.t.ann.nc  <- nc_open( file.path( kaplan_input_dir, paste0( "t_annual_"            , current.domain , ".nc" ) ) )
+      kap.cpool.nc  <- nc_open( file.path( kaplan_input_dir, kap.cpool.file ) )
+      kap.wetmap.nc <- nc_open( file.path( kaplan_input_dir, kap.wetmap.file ) )
+      kap.t.ann.nc  <- nc_open( file.path( kaplan_input_dir, kap.t.ann.file ) )
     }
     
     
@@ -229,9 +238,13 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
     nx <- dim(lon)[1]
     ny <- dim(lon)[2]
     
+    # TODO: Fix the output dates so that any range can be requested
     # Prepare the output dates:
-    out.dates <- seq( modis.dates[1], rev(modis.dates)[1], by = "day" )
-    
+    #out.dates <- seq( modis.dates[1], rev(modis.dates)[1], by = "day" )
+    out.dates <- seq( from = ISOdate( current.year, 01, 01, 00, tz = "UTC"),
+                      to   = ISOdate( current.year, 12, 31, 00, tz = "UTC"),
+                      by   = "day" )
+
     # This conditional block stores the daily lswi and evi intepolated values as
     # an R object in the temporary directory (hard-set) for later usage. Shortens
     # the run in debugging.
@@ -259,7 +272,8 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
         
         approx( x = dates.in,
                 y,
-                xout = dates.out)$y #Approx gives x and y - select x only
+                rule = c(1,2), # rule = c(1,2) returns NA for dates before min(modis.dates), and the nearest value for dates after max(modis.dates)
+                xout = dates.out)$y #Approx gives x and y - select y only
         
       }
       
@@ -409,8 +423,8 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
       
       # These are NECESSARY, because WRF actually reads those. And not only reads,
       # but landuse information is the one that drives the model.
-      # See logfile entry from March 8, 2019
-      ncatt_put( nc = ncnew, varid = 0, attname = "Source", attval = "WRF input file created by vprm_shapeshifter, v1.2 (MPI-BGC Jena 2018)")
+      # Mike G - see personal logfile entry from March 8, 2019
+      ncatt_put( nc = ncnew, varid = 0, attname = "Source", attval = "WRF input file created by vprm_shapeshifter, v1.3 (MPI-BGC Jena 2019)")
       
       
       for( i in 1:nrow(geo_em_attributes_floats) ){
@@ -525,7 +539,7 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
         
         ncatt_put( nc = ncnew, varid = ncvar.kaplan.wetmap, attname = "FieldType", attval = 104, prec = "int" )
         ncatt_put( nc = ncnew, varid = ncvar.kaplan.wetmap, attname = "MemoryOrder", attval = "XYZ" )
-        ncatt_put( nc = ncnew, varid = ncvar.kaplan.wetmap, attname = "units", attval = "something something dark side" )
+        ncatt_put( nc = ncnew, varid = ncvar.kaplan.wetmap, attname = "units", attval = "1 Woolong" )
         ncatt_put( nc = ncnew, varid = ncvar.kaplan.wetmap, attname = "description", attval = "Wetland map for Kaplan model" )
         ncatt_put( nc = ncnew, varid = ncvar.kaplan.wetmap, attname = "stagger", attval = "M" )
         ncatt_put( nc = ncnew, varid = ncvar.kaplan.wetmap, attname = "coordinates", attval = "XLONG XLAT" )
