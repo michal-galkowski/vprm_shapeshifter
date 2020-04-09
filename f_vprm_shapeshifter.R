@@ -78,14 +78,22 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
   cat("\nM.Galkowski, MPI-BGC Jena, 2018", sep = "")
   cat("\n")
   cat("\nInput directory:\n")
-  cat("  ", vprm_input_dir, "\n", sep = "")
+  cat("  ", vprm_input_dir, "\n", sep = "" )
   cat("\nDirectory with geo_em_dXX files:\n")
-  cat("  ", geo_em_input_dir, "\n", sep = "")
+  cat("  ", geo_em_input_dir, "\n", sep = "" )
   cat("\nOutput directory:\n")
-  cat("  ", output_dir, "\n", sep = "")
-  cat("\nDomains requested:\n")
+  cat("  ", output_dir, sep = "" )
+  if( !dir.exists( output_dir ) ) {
+    cat(" (created)\n" )
+    dir.create( output_dir, recursive = TRUE )
+  } else {
+    cat("\n")
+  }
+  
+  cat("\nDomains requested:\n" )
   cat("  ", paste( requested.domains, collapse = " " ), "\n", sep = "")
   cat("\n")
+  
   
   for( current.domain in requested.domains ){
     
@@ -174,7 +182,7 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
         cat("You did not provide separate directory for Kaplan input. We will assume it is located in vprm_input_dir, puny human.\n")
         kaplan_input_dir <- vprm_input_dir
       }
-
+      
       kap.cpool.file  <- sub( "dXX", current.domain, kaplan_cpool_file_pattern )
       kap.wetmap.file <- sub( "dXX", current.domain, kaplan_wetland_file_pattern )
       kap.t.ann.file  <- sub( "dXX", current.domain, kaplan_t_annual_file_pattern )
@@ -244,7 +252,7 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
     out.dates <- seq( from = ISOdate( current.year, 01, 01, 00, tz = "UTC"),
                       to   = ISOdate( current.year, 12, 31, 00, tz = "UTC"),
                       by   = "day" )
-
+    
     # This conditional block stores the daily lswi and evi intepolated values as
     # an R object in the temporary directory (hard-set) for later usage. Shortens
     # the run in debugging.
