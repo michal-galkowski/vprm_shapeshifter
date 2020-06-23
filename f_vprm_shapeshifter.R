@@ -400,7 +400,7 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
       # CREATE NCDF FILE AND ASSIGN VALUES TO VARIABLES
       ncnew <- nc_create( filename = file.path( output_dir, current.filename ),
                           vars     = list.of.variables,
-                          force_v4 = F)
+                          force_v4 = TRUE)
       
       ncvar_put( nc = ncnew, varid = ncvar.times,    vals = current.date.code )
       ncvar_put( nc = ncnew, varid = ncvar.xlong,    vals = as.vector( lon ) )
