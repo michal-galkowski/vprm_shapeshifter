@@ -18,6 +18,9 @@
 #                           It's purpose is to handle the last year for which EVI_MAX, EVI_MIN, LSWI_MAX and
 #                           LSWI_MIN indices are valid. Usually current.year - 1 (numeric)
 #           load.precalculated.indices - debug only
+#           no_colons - setting filenames with the no-colon date format, as possible with WRF
+#                       namelist option 'nocolons' in the &time_control section.
+#                       Default: FALSE
 #           add.kaplan.model.input - If input for Kaplan model is available in the input
 #                                    dir, it's enabled by this flag
 #           kaplan_input_dir - [optional] provide directory with input for Kaplan
@@ -48,6 +51,7 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
                                  requested.domains           = "d01",
                                  current.year                = 2018,
                                  previous.year               = NULL,
+				 no_colons                   = FALSE,
                                  load.precalculated.indices  = F,
                                  add.kaplan.model.input      = F,
                                  kaplan_input_dir            = NULL,
@@ -370,16 +374,21 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
       ncvar.kaplan.t.ann   <- ncvar_def( name = "T_ANN",   units = "K",       dim = list( ncdim.west_east, ncdim.south_north, ncdim.zdim, ncdim.Time ), longname = "mean annual temperature" )
     }
     
-    
-    # Writing output: ============================================================
     cat("Done \n", sep = "")
+    
+
+    # Writing output: ============================================================
     cat("Writing VPRM daily interpolated files...\n", sep = "")
     
     n.times <- length(out.dates)
     
+    # New in version 1.5: choose filename date format
+    filename_date_format <- if( no_colons ){ "%Y-%m-%d_%H_%M_%S" } else { "%Y-%m-%d_%H:%M:%S" }
+
     for( time.idx in 1:n.times ){
       
       current.date.code <- format( out.dates[time.idx], format = "%Y-%m-%d_%H:%M:%S" )
+      current.date.code.for.filename <- format( out.dates[time.idx], format = filename_date_format )
       current.filename  <- paste0( "vprm_input_", current.domain, "_", current.date.code )
       
       cat( "\r #", time.idx, "/", n.times, ": ", current.filename, "", sep = "" )
