@@ -7,3 +7,4 @@ results/
 input/
 .ipynb_checkpoints/
 run_vprm_shapeshifter_*
+log*

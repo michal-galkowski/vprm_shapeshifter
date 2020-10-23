@@ -73,9 +73,9 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
   library(tibble)
   
   cat("\n===================================================================", sep = "")
-  cat("\n===================     VPRM Shapeshifter     =====================", sep = "")
-  cat("\n===================    for WRF-Chem 3.9.1.1.  =====================", sep = "")
-  cat("\n===================            v. 1.3         =====================", sep = "")
+  cat("\n===================      VPRM Shapeshifter    =====================", sep = "")
+  cat("\n===================         for WRF-Chem      =====================", sep = "")
+  cat("\n===================            v. 1.5         =====================", sep = "")
   cat("\n===================         MPI-BGC 2018      =====================", sep = "")
   cat("\n===================================================================", sep = "")
   cat("\n")
@@ -389,7 +389,7 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
       
       current.date.code <- format( out.dates[time.idx], format = "%Y-%m-%d_%H:%M:%S" )
       current.date.code.for.filename <- format( out.dates[time.idx], format = filename_date_format )
-      current.filename  <- paste0( "vprm_input_", current.domain, "_", current.date.code )
+      current.filename  <- paste0( "vprm_input_", current.domain, "_", current.date.code.for.filename, ".nc" )
       
       cat( "\r #", time.idx, "/", n.times, ": ", current.filename, "", sep = "" )
       flush.console()
