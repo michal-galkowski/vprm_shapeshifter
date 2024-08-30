@@ -75,8 +75,8 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
   cat("\n===================================================================", sep = "")
   cat("\n===================      VPRM Shapeshifter    =====================", sep = "")
   cat("\n===================         for WRF-Chem      =====================", sep = "")
-  cat("\n===================            v. 1.5         =====================", sep = "")
-  cat("\n===================         MPI-BGC 2018      =====================", sep = "")
+  cat("\n===================           v. 1.5.1        =====================", sep = "")
+  cat("\n===================         MPI-BGC 2024      =====================", sep = "")
   cat("\n===================================================================", sep = "")
   cat("\n")
   cat("\nM.Galkowski, MPI-BGC Jena, 2018", sep = "")
@@ -247,8 +247,9 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
     
     
     # Dimensions:
-    nx <- dim(lon)[1]
-    ny <- dim(lon)[2]
+    nx           <- dim(lon)[1]
+    ny           <- dim(lon)[2]
+    nvegclass    <- dim(lswi)[4]
     
     # TODO: Fix the output dates so that any range can be requested
     # Prepare the output dates:
@@ -273,8 +274,8 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
       
       cat( "Requested new interpolation of EVI and LSWI (load.precalculated.indices == F).\n" )
       # Prepare the dummy array that will store intepolated values
-      daily.lswi <- array( dim = c( dim( lswi )[1:2], length( out.dates ), dim( lswi )[4] ) )
-      daily.evi  <- array( dim = c( dim( evi )[1:2], length( out.dates ), dim( evi )[4] ) )
+      daily.lswi <- array( dim = c( dim( lswi )[1:2], length( out.dates ), nvegclass ) )
+      daily.evi  <- array( dim = c( dim( evi )[1:2], length( out.dates ), nvegclass ) )
       cat("Interpolating EVI and LSWI to daily values... \n", sep = "")
       
       # A simple wrapper for apply function to accept the approx function
@@ -289,8 +290,7 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
         
       }
       
-      n <- dim(daily.lswi)[4]
-      for( veg.class.idx in 1:dim(daily.lswi)[4] ){
+      for( veg.class.idx in 1:nvegclass ){
         
         cat( "  Calculating ncdf vegetation class #", veg.class.idx, "/", n, "\n", sep = "" )
         
@@ -304,34 +304,6 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
         
       }
       rm( interpolated.field )
-      
-      # ==========================================================================
-      # Simple for-loop structure below was replaced with apply construct
-      # above. These are equivalent. Apply is a little faster.
-      # Comparison of speed (system.time function) for a single domain with half a year
-      # of data to be interpolated: 325x402x161
-      #     "for" loop structure:   233.557 s
-      #     apply structure:        211.772 s
-      # n <- dim(daily.lswi)[1]
-      # system.time({
-      #   for( i in 1:dim(daily.lswi)[1]){
-      #     cat( "\r  Calculating ncdf longitude band #", i, "/", n, "", sep = "" )
-      #     for( j in 1:dim(daily.lswi)[2]){
-      #       for( veg.class.idx in 1:dim(daily.lswi)[4]){
-      #         
-      #         x <- modis.dates
-      #         y <- lswi[ i, j, ,veg.class.idx ]
-      #         daily.lswi[ i, j, , veg.class.idx ] <- approx( x, y, xout = out.dates )$y
-      #         
-      #         x <- modis.dates
-      #         y <- evi[ i, j, ,veg.class.idx ]
-      #         daily.evi[ i, j, , veg.class.idx ] <- approx( x, y, xout = out.dates )$y
-      #         
-      #       } # End of for loop with veg.class.idx index.
-      #     } # End of for loop with j index.
-      #   } # End of for loop with i index.
-      # })
-      
       
       # Saving of the interpolated indices as a file to save time
       # Use only when debugging.
@@ -347,12 +319,12 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
     cat("Setting structure of the output netcdf files... ", sep = "")
     
     # Define DIMENSIONS:
-    ncdim.Time        <- ncdim_def( name = "Time",        units = "", vals  = 1:1,  create_dimvar = F, unlim = F )
-    ncdim.DateStrLen  <- ncdim_def( name = "DateStrLen",  units = "", vals  = 1:19, create_dimvar = F )
-    ncdim.west_east   <- ncdim_def( name = "west_east",   units = "", vals  = 1:nx, create_dimvar = F )
-    ncdim.south_north <- ncdim_def( name = "south_north", units = "", vals  = 1:ny, create_dimvar = F )
-    ncdim.veg_type    <- ncdim_def( name = "vprm_vgcls",  units = "", vals  = 1:8,  create_dimvar = F )
-    ncdim.zdim        <- ncdim_def( name = "zdim",        units = "", vals  = 1:1,  create_dimvar = F )
+    ncdim.Time        <- ncdim_def( name = "Time",        units = "", vals  = 1:1,          create_dimvar = F, unlim = F )
+    ncdim.DateStrLen  <- ncdim_def( name = "DateStrLen",  units = "", vals  = 1:19,         create_dimvar = F )
+    ncdim.west_east   <- ncdim_def( name = "west_east",   units = "", vals  = 1:nx,         create_dimvar = F )
+    ncdim.south_north <- ncdim_def( name = "south_north", units = "", vals  = 1:ny,         create_dimvar = F )
+    ncdim.veg_type    <- ncdim_def( name = "vprm_vgcls",  units = "", vals  = 1:nvegclass,  create_dimvar = F )
+    ncdim.zdim        <- ncdim_def( name = "zdim",        units = "", vals  = 1:1,          create_dimvar = F )
     
     # DEFINE VARIABLES
     ncvar.times    <- ncvar_def( name = "Times",         units = "",        dim = list( ncdim.DateStrLen, ncdim.Time        ), prec = "char") 
@@ -465,17 +437,7 @@ f_vprm_shapeshifter <- function( vprm_input_dir,
       ncatt_put( nc = ncnew, varid = 0, attname = "GMT", attval = 0, prec = "float")
       ncatt_put( nc = ncnew, varid = 0, attname = "JULYR", attval = year( out.dates[time.idx] ), prec = "int" )
       ncatt_put( nc = ncnew, varid = 0, attname = "JULDAY", attval = yday( out.dates[time.idx] ), prec = "int" )
-      
-      # DEPRECATED
-      # for( i in 1:nrow(geo_em_atrributes) ){
-      #   ncatt_put( nc = ncnew,
-      #              varid = 0,
-      #              attname = geo_em_atrributes$attname[i],
-      #              attval  = geo_em_atrributes$value[i],
-      #              prec    = geo_em_atrributes$precision[i] )
-      # } # End of writing attributes from geo_em
-      
-      
+
       
       
       
