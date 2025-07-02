@@ -13,6 +13,7 @@ source("f_vprm_shapeshifter.R")
 # Main function call. Replace paths here with appropriate directories.
 # For detailed description of the variables, see function source file (f_vprm_shapeshifter.R)
 f_vprm_shapeshifter( vprm_input_dir         = "/work/mj0143/b301033/Data/MODIS_indices/_test",    # MODIS indices on WRF domains (e.g. EVI_2018_d03.nc)
+		     geo_em_input_dir       = "/home/users/vrinda/VPRM/pyVPRM_examples/wrf_preprocessor/out/", # Where geo_em_** files are placed
                      output_dir             = "/work/mj0143/b301033/Data/VPRM_input/WRF_input/_test",  # where vprm_input files will be
                      requested.domains      = c("d01", "d02", "d03"),
                      current.year           = 2018,
